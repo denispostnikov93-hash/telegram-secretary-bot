@@ -183,24 +183,40 @@ class TelegramSecretaryBot:
     async def consent_pd_handler(self, message: types.Message, state: FSMContext):
         """Согласие на обработку ПД"""
         user_id = message.from_user.id
+        logger.info(f"🔵 consent_pd_handler для {user_id}")
+
         if user_id not in self.user_data:
             self.user_data[user_id] = {'consent_pd': False, 'consent_policy': False, 'in_consent_step': False}
+            logger.info(f"   Создан новый user_data для {user_id}")
 
-        if self.user_data[user_id].get('in_consent_step'):
+        in_consent = self.user_data[user_id].get('in_consent_step', False)
+        logger.info(f"   in_consent_step={in_consent}")
+
+        if in_consent:
             self.user_data[user_id]['consent_pd'] = True
-            logger.info(f"User {user_id} consented to data processing")
+            logger.info(f"   ✓ Установлен consent_pd=True")
             await self.check_consents(message, state, user_id)
+        else:
+            logger.warning(f"   ⚠️ in_consent_step=False, пропускаю")
 
     async def consent_policy_handler(self, message: types.Message, state: FSMContext):
         """Согласие с политикой"""
         user_id = message.from_user.id
+        logger.info(f"🟢 consent_policy_handler для {user_id}")
+
         if user_id not in self.user_data:
             self.user_data[user_id] = {'consent_pd': False, 'consent_policy': False, 'in_consent_step': False}
+            logger.info(f"   Создан новый user_data для {user_id}")
 
-        if self.user_data[user_id].get('in_consent_step'):
+        in_consent = self.user_data[user_id].get('in_consent_step', False)
+        logger.info(f"   in_consent_step={in_consent}")
+
+        if in_consent:
             self.user_data[user_id]['consent_policy'] = True
-            logger.info(f"User {user_id} consented to policy")
+            logger.info(f"   ✓ Установлен consent_policy=True")
             await self.check_consents(message, state, user_id)
+        else:
+            logger.warning(f"   ⚠️ in_consent_step=False, пропускаю")
 
     async def consent_refusal_handler(self, message: types.Message, state: FSMContext):
         """Обработка отказа от согласия"""
@@ -297,17 +313,25 @@ class TelegramSecretaryBot:
         consent_pd = self.user_data[user_id].get('consent_pd', False)
         consent_policy = self.user_data[user_id].get('consent_policy', False)
 
-        logger.info(f"User {user_id} check_consents: PD={consent_pd}, Policy={consent_policy}")
+        logger.info(f"⚪ check_consents для {user_id}: PD={consent_pd}, Policy={consent_policy}")
 
         if consent_pd and consent_policy:
             # Оба согласия получены - переходим к выбору типа клиента
             self.user_data[user_id]['in_consent_step'] = False
-            logger.info(f"User {user_id} passed consent step - moving to client type selection")
+
+            logger.info(f"✅ УСПЕХ: User {user_id} прошел consent step")
+            logger.info(f"   Установляю состояние waiting_client_type")
+
             await state.set_state(ApplicationForm.waiting_client_type)
+            current_state = await state.get_state()
+            logger.info(f"   Текущее состояние: {current_state}")
+
+            logger.info(f"   Отправляю сообщение с client_type_keyboard")
             await message.answer(
                 "✅ Спасибо! Теперь выберите тип клиента:",
                 reply_markup=self.client_type_keyboard()
             )
+            logger.info(f"   ✓ Сообщение отправлено")
         else:
             # Не все согласия получены
             confirmed_count = 0
