@@ -222,8 +222,15 @@ class TelegramSecretaryBot:
             logger.warning(f"   ⚠️ in_consent_step=False, пропускаю")
 
     async def consent_refusal_handler(self, message: types.Message, state: FSMContext):
-        """Обработка отказа от согласия"""
+        """Обработка отказа от согласия - срабатывает только если пользователь в процессе согласий"""
         user_id = message.from_user.id
+
+        # Защита от duplicate вызовов
+        if user_id not in self.user_data or not self.user_data[user_id].get('in_consent_step'):
+            logger.info(f"User {user_id} sent refuse button but not in consent step - ignoring")
+            return
+
+        logger.info(f"🔴 consent_refusal_handler для {user_id}")
 
         await self.send_refusal_application(user_id, message.from_user)
 
