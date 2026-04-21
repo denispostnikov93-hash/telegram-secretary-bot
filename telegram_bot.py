@@ -294,26 +294,35 @@ class TelegramSecretaryBot:
 
     async def check_consents(self, message: types.Message, state: FSMContext, user_id: int):
         """Проверить оба согласия"""
-        if self.user_data[user_id]['consent_pd'] and self.user_data[user_id]['consent_policy']:
+        consent_pd = self.user_data[user_id].get('consent_pd', False)
+        consent_policy = self.user_data[user_id].get('consent_policy', False)
+
+        logger.info(f"User {user_id} check_consents: PD={consent_pd}, Policy={consent_policy}")
+
+        if consent_pd and consent_policy:
+            # Оба согласия получены - переходим к выбору типа клиента
             self.user_data[user_id]['in_consent_step'] = False
-            logger.info(f"User {user_id} passed consent step")
+            logger.info(f"User {user_id} passed consent step - moving to client type selection")
             await state.set_state(ApplicationForm.waiting_client_type)
             await message.answer(
                 "✅ Спасибо! Теперь выберите тип клиента:",
                 reply_markup=self.client_type_keyboard()
             )
         else:
+            # Не все согласия получены
             confirmed_count = 0
-            if self.user_data[user_id]['consent_pd']:
+            if consent_pd:
                 confirmed_count += 1
-            if self.user_data[user_id]['consent_policy']:
+            if consent_policy:
                 confirmed_count += 1
+
+            logger.info(f"User {user_id} has {confirmed_count} confirmations, waiting for more")
 
             if confirmed_count == 1:
                 remaining = []
-                if not self.user_data[user_id]['consent_pd']:
+                if not consent_pd:
                     remaining.append("согласие на обработку персональных данных")
-                if not self.user_data[user_id]['consent_policy']:
+                if not consent_policy:
                     remaining.append("ознакомление с политикой обработки данных")
 
                 await message.answer(
