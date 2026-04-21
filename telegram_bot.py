@@ -67,6 +67,9 @@ class TelegramSecretaryBot:
         self.dp.message.register(self.phone_refusal_handler, F.text.contains("Позвонить"))
         self.dp.message.register(self.return_consent_handler, F.text.contains("согласие и оставить"))
 
+        # Любое сообщение в главном меню запускает цикл приветствия
+        self.dp.message.register(self.auto_start_application)
+
         # Catch-all для отладки
         self.dp.message.register(self.debug_handler)
 
@@ -155,7 +158,15 @@ class TelegramSecretaryBot:
 
         await message.answer(
             "👋 Добро пожаловать в Правовой центр \"Постников групп\"!\n\n"
-            "Мы поможем защитить ваши права. Для записи на консультацию нажмите кнопку.",
+            "Мы поможем защитить ваши права.\n\n"
+            "📋 ПРОЦЕСС ЗАПИСИ НА КОНСУЛЬТАЦИЮ:\n"
+            "1️⃣ Согласие на обработку данных\n"
+            "2️⃣ Выбор типа клиента (физлицо/юрлицо)\n"
+            "3️⃣ Категория вопроса\n"
+            "4️⃣ Ваше имя и телефон\n"
+            "5️⃣ Краткое описание ситуации\n"
+            "6️⃣ Получение консультации\n\n"
+            "Нажмите кнопку ниже или напишите любое сообщение для начала:",
             reply_markup=self.main_keyboard()
         )
 
@@ -511,6 +522,22 @@ class TelegramSecretaryBot:
             logger.info(f"✓ Заявка отправлена в чат")
         except Exception as e:
             logger.error(f"✗ Ошибка отправки в чат: {e}")
+
+    async def auto_start_application(self, message: types.Message, state: FSMContext):
+        """Автоматически запустить цикл приветствия при любом сообщении из главного меню"""
+        user_id = message.from_user.id
+        current_state = await state.get_state()
+
+        # Проверить, что пользователь не в процессе заполнения формы
+        is_in_process = (
+            current_state is not None or
+            (user_id in self.user_data and self.user_data[user_id].get('in_consent_step', False))
+        )
+
+        # Срабатывает только если пользователь в главном меню (нет состояния и не в процессе)
+        if not is_in_process:
+            logger.info(f"Auto-starting application for user {user_id}")
+            await self.btn_record(message, state)
 
     async def debug_handler(self, message: types.Message, state: FSMContext):
         """Debug обработчик - логирует неожиданные сообщения"""
