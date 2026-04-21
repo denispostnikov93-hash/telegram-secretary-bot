@@ -77,16 +77,16 @@ class TelegramSecretaryBot:
             resize_keyboard=True
         )
 
-    def consent_keyboard(self):
-        """Согласие"""
-        return types.ReplyKeyboardMarkup(
-            keyboard=[
-                [types.KeyboardButton(text="✅ Согласен на обработку персональных данных")],
-                [types.KeyboardButton(text="✅ Ознакомлен с политикой обработки данных")],
-                [types.KeyboardButton(text="❌ Отказать в согласии")]
-            ],
-            resize_keyboard=True
-        )
+    def consent_keyboard(self, consent_pd=False, consent_policy=False):
+        """Согласие - динамическая клавиатура"""
+        buttons = []
+        if not consent_pd:
+            buttons.append([types.KeyboardButton(text="✅ Согласен на обработку персональных данных")])
+        if not consent_policy:
+            buttons.append([types.KeyboardButton(text="✅ Ознакомлен с политикой обработки данных")])
+        buttons.append([types.KeyboardButton(text="❌ Отказать в согласии")])
+
+        return types.ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
     def client_type_keyboard(self):
         """Выбор типа клиента"""
@@ -177,7 +177,10 @@ class TelegramSecretaryBot:
             f"📄 Политика обработки данных: {PRIVACY_POLICY_URL}\n"
             f"📄 Согласие на обработку данных: {AGREEMENT_URL}\n\n"
             f"Нажмите обе кнопки ниже для подтверждения:",
-            reply_markup=self.consent_keyboard()
+            reply_markup=self.consent_keyboard(
+                consent_pd=self.user_data[user_id]['consent_pd'],
+                consent_policy=self.user_data[user_id]['consent_policy']
+            )
         )
 
     async def consent_pd_handler(self, message: types.Message, state: FSMContext):
@@ -277,7 +280,10 @@ class TelegramSecretaryBot:
             f"📄 Политика обработки данных: {PRIVACY_POLICY_URL}\n"
             f"📄 Согласие на обработку данных: {AGREEMENT_URL}\n\n"
             f"Нажмите обе кнопки ниже для подтверждения:",
-            reply_markup=self.consent_keyboard()
+            reply_markup=self.consent_keyboard(
+                consent_pd=self.user_data[user_id]['consent_pd'],
+                consent_policy=self.user_data[user_id]['consent_policy']
+            )
         )
 
     async def send_refusal_application(self, user_id: int, user: types.User = None):
@@ -352,7 +358,11 @@ class TelegramSecretaryBot:
                 await message.answer(
                     f"✅ Отлично! Вы подтвердили 1 из 2 согласий.\n\n"
                     f"Осталось подтвердить:\n"
-                    f"✓ {remaining[0]}"
+                    f"✓ {remaining[0]}",
+                    reply_markup=self.consent_keyboard(
+                        consent_pd=consent_pd,
+                        consent_policy=consent_policy
+                    )
                 )
 
     async def client_type_handler(self, message: types.Message, state: FSMContext):
